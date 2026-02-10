@@ -32,7 +32,7 @@
 #define MICROPY_VERSION_MAJOR 1
 #define MICROPY_VERSION_MINOR 25
 #define MICROPY_VERSION_MICRO 0
-#define MICROPY_VERSION_PRERELEASE 0
+#define MICROPY_VERSION_PRERELEASE 1
 
 // Combined version as a 32-bit number for convenience to allow version
 // comparison. Doesn't include prerelease state.
@@ -88,7 +88,7 @@
 #ifdef MP_CONFIGFILE
 #include MP_CONFIGFILE
 #else
-#include <mpconfigport.h>
+#include <ports/rtt/mpconfigport.h>
 #endif
 
 // Ports/boards should set this, but default to level=core.
@@ -1782,7 +1782,7 @@ typedef double mp_float_t;
 #endif
 
 #ifndef MICROPY_PY_MACHINE
-#define MICROPY_PY_MACHINE (0)
+#define MICROPY_PY_MACHINE (1)
 #endif
 
 // Whether to include: reset, reset_cause

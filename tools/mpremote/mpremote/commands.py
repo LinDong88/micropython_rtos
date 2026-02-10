@@ -1,5 +1,4 @@
 import binascii
-import errno
 import hashlib
 import os
 import sys
@@ -10,7 +9,7 @@ import serial.tools.list_ports
 
 from .transport import TransportError, TransportExecError, stdout_write_bytes
 from .transport_serial import SerialTransport
-from .romfs import make_romfs, VfsRomWriter
+from .romfs import make_romfs
 
 
 class CommandError(Exception):
@@ -301,28 +300,6 @@ def do_filesystem_recursive_cp(state, src, dest, multiple, check_hash):
         do_filesystem_cp(state, src_path_joined, dest_path_joined, False, check_hash)
 
 
-def do_filesystem_recursive_rm(state, path, args):
-    if state.transport.fs_isdir(path):
-        for entry in state.transport.fs_listdir(path):
-            do_filesystem_recursive_rm(state, _remote_path_join(path, entry.name), args)
-        if path:
-            try:
-                state.transport.fs_rmdir(path)
-                if args.verbose:
-                    print(f"removed directory: '{path}'")
-            except OSError as e:
-                if e.errno != errno.EINVAL:  # not vfs mountpoint
-                    raise CommandError(
-                        f"rm -r: cannot remove :{path} {os.strerror(e.errno) if e.errno else ''}"
-                    ) from e
-                if args.verbose:
-                    print(f"skipped: '{path}' (vfs mountpoint)")
-    else:
-        state.transport.fs_rmfile(path)
-        if args.verbose:
-            print(f"removed: '{path}'")
-
-
 def do_filesystem(state, args):
     state.ensure_raw_repl()
     state.did_action()
@@ -375,10 +352,7 @@ def do_filesystem(state, args):
             elif command == "mkdir":
                 state.transport.fs_mkdir(path)
             elif command == "rm":
-                if args.recursive:
-                    do_filesystem_recursive_rm(state, path, args)
-                else:
-                    state.transport.fs_rmfile(path)
+                state.transport.fs_rmfile(path)
             elif command == "rmdir":
                 state.transport.fs_rmdir(path)
             elif command == "touch":
@@ -581,7 +555,7 @@ def _do_romfs_deploy(state, args):
     romfs_filename = args.path
 
     # Read in or create the ROMFS filesystem image.
-    if os.path.isfile(romfs_filename) and romfs_filename.endswith((".img", ".romfs")):
+    if romfs_filename.endswith(".romfs"):
         with open(romfs_filename, "rb") as f:
             romfs = f.read()
     else:
@@ -606,11 +580,6 @@ def _do_romfs_deploy(state, args):
     else:
         rom_size = transport.eval("len(dev)")
         print(f"ROMFS{rom_id} partition has size {rom_size} bytes")
-
-    # Check if ROMFS image is valid
-    if not romfs.startswith(VfsRomWriter.ROMFS_HEADER):
-        print("Invalid ROMFS image")
-        sys.exit(1)
 
     # Check if ROMFS filesystem image will fit in the target partition.
     if len(romfs) > rom_size:
